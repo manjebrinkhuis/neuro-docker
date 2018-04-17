@@ -6,13 +6,13 @@ USER root
 # First install some dependencies
 RUN apt-get update && apt-get dist-upgrade -y \
   && apt-get install -y \
- 	dirmngr \
-	gnupg \
-	--no-install-recommends \
+    dirmngr \
+    gnupg \
+    --no-install-recommends \
     wget \
     ca-certificates \
-	libgl1-mesa-dri \
-	libgl1-mesa-glx \
+    libgl1-mesa-dri \
+    libgl1-mesa-glx \
     locales \
     fonts-liberation
 ENV LANG en-US
