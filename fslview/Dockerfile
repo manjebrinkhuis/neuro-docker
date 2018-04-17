@@ -25,4 +25,7 @@ RUN echo "$(wget -O- http://neuro.debian.net/lists/xenial.de-md.full)" >> /etc/a
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
+RUN useradd neuro
+USER neuro
+
 ENTRYPOINT [ "fslview" ]
