@@ -5,5 +5,5 @@ docker run --rm \
     -e DISPLAY=unix$DISPLAY \
     -v /mnt/data:/data \
     -v /mnt/data/Apps/Linux/freesurfer:/opt/freesurfer \
-    --name neuro-lab \
-    neuro-debian-docker/neuro-lab
+    --name neuro-docker \
+    manjebrinkhuis/neuro-docker
