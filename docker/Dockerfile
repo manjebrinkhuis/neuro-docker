@@ -88,5 +88,7 @@ RUN apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
 USER neuro
-ENV SHELL=/bin/bash
+ENV SHELL=/bin/bash \
+  USER=neuro
+  
 ENTRYPOINT ["/bin/bash"]
