@@ -6,23 +6,18 @@ USER root
 # Create user and setup directories
 RUN useradd -m -s /bin/bash neuro
 
-RUN mkdir /home/neuro/.jupyter \
-  && chown -R neuro:neuro /home/neuro
-
-ADD jupyter_notebook_config.py \
-  /home/neuro/.jupyter/jupyter_notebook_config.py
-
 RUN mkdir /data \
-  && chown -R neuro:neuro /data
+  && mkdir /opt/conda \
+  && mkdir /opt/freesurfer \
+  && chown -R neuro:neuro /opt/conda
 
 # Dependencies
 RUN apt-get update && apt-get -yq dist-upgrade \
   && apt-get install -yq --no-install-recommends \
-    gnupg \
     wget \
+    gnupg \
     bzip2 \
     ca-certificates \
-    sudo \
     locales \
     fonts-liberation \
     libgl1-mesa-dri \
@@ -31,7 +26,13 @@ RUN apt-get update && apt-get -yq dist-upgrade \
     libxi-dev \
     libxmu-dev \
     libglu1-mesa-dev \
-    libjpeg62-dev
+    libjpeg62-dev \
+    fsl-core \
+    fslview \
+    graphviz \
+    libgraphviz-dev \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
 # Lanuage
 RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen \
@@ -41,54 +42,52 @@ ENV LC_ALL=en_US.UTF-8 \
   LANG=en_US.UTF-8 \
   LANGUAGE=en_US.UTF-8
 
-# FSL
-RUN apt-get install -y fsl-core fslview
-ENV FSLDIR /usr/share/fsl/5.0
-RUN bash ${FSLDIR}/etc/fslconf/fsl.sh
-RUN PATH=${FSLDIR}/bin:${PATH}
-RUN export FSLDIR PATH
+EXPOSE 8888
 
-# Freesurfer -- requires freesurfer
-# folder to be mounted to /opt/freesurfer
-RUN mkdir /opt/freesurfer \
-  && echo "FREESURFER_HOME=/opt/freesurfer" >> /home/neuro/.bashrc \
-  && echo 'source $FREESURFER_HOME/SetUpFreeSurfer.sh' >> /home/neuro/.bashrc
-
+WORKDIR /home/neuro
 USER neuro
 
-# Miniconda
-ENV CONDA_FNAME=Miniconda3-latest-Linux-x86_64.sh \
-    CONDA_URL=https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    CONDA_PATH=/home/neuro/conda
-ENV PATH=${CONDA_PATH}/bin:${PATH}
+ENV FSLDIR=/usr/share/fsl/5.0 \
+  FREESURFER_HOME=/opt/freesurfer \
+  CONDA_PATH=/opt/conda \
+  CONDA_FNAME=Miniconda3-latest-Linux-x86_64.sh \
+  CONDA_URL=https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+  SHELL=/bin/bash
+
+RUN bash ${FSLDIR}/etc/fslconf/fsl.sh
+ENV PATH=${FSLDIR}/bin:${PATH}
 
 RUN wget ${CONDA_URL} -P /tmp/ \
-  && bash /tmp/${CONDA_FNAME} -b -p ${CONDA_PATH} \
-  && ${CONDA_PATH}/bin/conda config --add channels conda-forge \
-  && ${CONDA_PATH}/bin/conda clean -tipsy
+  && bash /tmp/${CONDA_FNAME} -b -u -p ${CONDA_PATH}
+
+ENV PATH=${CONDA_PATH}/bin:${PATH}
+ENV CONDA_ENVS_PATH=/home/neuro/.conda
 
 # Jupyterlab + environment
-RUN ${CONDA_PATH}/bin/conda install -y jupyterlab \
-  && ${CONDA_PATH}/bin/conda install -y -c r r r-essentials \
-  && ${CONDA_PATH}/bin/conda create -y -n neuro \
+RUN conda install -y jupyterlab \
+  && conda config --add channels conda-forge
+
+# R
+RUN conda install -y -c r r-base r-irkernel
+
+# Neuro
+RUN conda create -y -n neuro \
     python=3 \
     pandas \
     numpy \
     scipy \
+    rpy2 \
     nipype \
     nibabel \
-    ipykernel \
-  && ${CONDA_PATH}/envs/neuro/bin/python -m ipykernel \
-    install --user --name neuro
+    ipykernel
+RUN /home/neuro/.conda/envs/neuro/bin/python -m ipykernel \
+    install --user --name neuro \
 
-# Finish
-USER root
-EXPOSE 8888
-RUN apt-get clean \
-  && rm -rf /var/lib/apt/lists/*
+# Clean up
+RUN conda clean -tipsy
 
-USER neuro
-ENV SHELL=/bin/bash \
-  USER=neuro
-  
-ENTRYPOINT ["/bin/bash"]
+RUN mkdir /home/neuro/.jupyter
+ADD jupyter_notebook_config.py /home/neuro/.jupyter/jupyter_notebook_config.py
+
+ADD setup.sh /home/neuro/setup.sh
+ENTRYPOINT [ "/home/neuro/setup.sh" ]
